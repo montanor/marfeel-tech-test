@@ -1,0 +1,11 @@
+[Unit]
+Description=Python web-app
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/test
+ExecStart=/usr/bin/python3 -m http.server --cgi 8080
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

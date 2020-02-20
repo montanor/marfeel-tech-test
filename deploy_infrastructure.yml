@@ -1,0 +1,94 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: This CloudFormation template contains the blueprint for deploying the infrastructure resources requested in the marfeel sysadmin Bogota position test, contains an instance with HAproxy as load balancer for an app server hosting a Python application. David Montaño - daalmore@gmail.com
+
+Resources:
+  HAproxySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: haproxy-secgroup
+      GroupDescription: Security group for the HAproxy intance
+      VpcId: vpc-b33ad5ca
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 190.216.159.17/32
+
+  HAproxyInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      KeyName: HAproxy-ec2
+      ImageId: ami-6d48500b
+      InstanceType: t2.nano
+      SecurityGroupIds:
+        - !Ref HAproxySecurityGroup
+      UserData: !Base64 |
+        #!/bin/bash -ex
+        # Install HAproxy
+        apt-get update 
+        apt-get install -y haproxy unzip
+        # Install AWS CLI
+        curl "https://d1vvhvl2y92vvt.cloudfront.net/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+        unzip awscliv2.zip
+        sudo ./aws/install
+        # Download the autoscaling group register script
+
+
+  AppServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: AppServer-secgroup
+      GroupDescription: Security group for the app server intance
+      VpcId: vpc-b33ad5ca
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 190.216.159.17/32
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 190.216.159.17/32
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          SourceSecurityGroupId: !Ref HAproxySecurityGroup
+
+  AppServerLaunchConfiguration:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      LaunchConfigurationName: AppServer-launchconfig
+      AssociatePublicIpAddress: true
+      ImageId: ami-6d48500b
+      InstanceType: t2.nano
+      KeyName: AppServer-ec2
+      SecurityGroups:
+        - !Ref AppServerSecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -ex
+          # Install Python and Nginx
+          apt-get update
+          apt-get install -y python3 nginx
+          # Autostart Nginx
+          systemctl enable nginx
+          # Clone the Python app source code
+          cd /opt
+          git clone https://bitbucket.org/Marfeel/appserverpythontestapp.git
+          mv appserverpythontestapp/ test/
+          # Start the Python App in background 
+          cd /opt/test
+          /usr/bin/python3 -m http.server --cgi 8080 &> /dev/null &
+
+  AppServerAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AvailabilityZones:
+        - eu-west-1c
+      LaunchConfigurationName: !Ref AppServerLaunchConfiguration
+      MaxSize: 1
+      MinSize: 1
