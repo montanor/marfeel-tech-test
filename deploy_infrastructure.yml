@@ -63,7 +63,7 @@ Resources:
     Properties:
       LaunchConfigurationName: AppServer-launchconfig
       AssociatePublicIpAddress: true
-      ImageId: ami-6d48500b
+      ImageId: ami-00cb0463f89d38e5e
       InstanceType: t2.nano
       KeyName: AppServer-ec2
       SecurityGroups:
@@ -71,16 +71,19 @@ Resources:
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash -ex
+          # The following commented lines where used to setup the vanilla ubuntu image          
           # Install Python and Nginx
-          apt-get update
-          apt-get install -y python3 nginx
+          # apt-get update
+          # apt-get install -y python3 nginx
+          # Create Nginx Cache folder
+          mkdir -p /tmp/nginx/cache
           # Autostart Nginx
           systemctl enable nginx
           # Clone the Python app source code
           cd /opt
           git clone https://bitbucket.org/Marfeel/appserverpythontestapp.git
           mv appserverpythontestapp/ test/
-          # Start the Python App in background 
+          # Start the Python App in background (The AMI already has this as a service)
           cd /opt/test
           /usr/bin/python3 -m http.server --cgi 8080 &> /dev/null &
 
