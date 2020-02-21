@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: This CloudFormation template contains the blueprint for deploying the infrastructure resources requested in the marfeel sysadmin Bogota position test, contains an instance with HAproxy as load balancer for an app server hosting a Python application. David Montaño - daalmore@gmail.com
+Description: This CloudFormation template contains the blueprint for deploying the infrastructure resources requested in the marfeel sysadmin Bogota position test, contains an instance with HAproxy as load balancer for an Autoscaling group in charge of an app-server hosting a Python application. David Montaño - daalmore@gmail.com
 
 Resources:
   HAproxySecurityGroup:
@@ -38,7 +38,7 @@ Resources:
         sudo ./aws/install
         # Download the autoscaling group register script and template
         cd /etc/haproxy/
-        wget https://raw.githubusercontent.com/montanor/marfeel-tech-test/master/haproxy/auto-add-instances.sh
+        wget -O auto-add-instances.sh https://raw.githubusercontent.com/montanor/marfeel-tech-test/master/haproxy/auto-add-instances.sh
         wget -O haproxy.cfg.template https://raw.githubusercontent.com/montanor/marfeel-tech-test/master/haproxy/haproxy.cfg
         chmod +x auto-add-instances.sh
         echo "*/3 * * * * /etc/haproxy/auto-add-instances.sh > /etc/haproxy/auto-add-log" | tee -a /var/spool/cron/crontabs/root
@@ -85,13 +85,18 @@ Resources:
           mkdir -p /tmp/nginx/cache
           # Autostart Nginx
           systemctl enable nginx
+          # Set custom nginx settings
+          cd /etc/nginx
+          wget -O nginx.conf https://raw.githubusercontent.com/montanor/marfeel-tech-test/master/appserver/nginx/nginx.conf
+          wget -O /etc/nginx/sites-available/default https://raw.githubusercontent.com/montanor/marfeel-tech-test/master/appserver/nginx/default
           # Clone the Python app source code
           cd /opt
           git clone https://bitbucket.org/Marfeel/appserverpythontestapp.git
           mv appserverpythontestapp/ test/
           # Start the Python App in background (The AMI already has this as a service)
-          cd /opt/test
-          /usr/bin/python3 -m http.server --cgi 8080 &> /dev/null &
+          systemctl restart nginx
+          systemctl start webapp
+          # /usr/bin/python3 -m http.server --cgi 8080 &> /dev/null &
 
   AppServerAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
