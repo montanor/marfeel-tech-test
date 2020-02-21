@@ -9,11 +9,11 @@ Resources:
       GroupDescription: Security group for the HAproxy intance
       VpcId: vpc-b33ad5ca
       SecurityGroupIngress:
-        - IpProtocol: tcp
+        - IpProtocol: tcp # Allow public access
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
+        - IpProtocol: tcp # Remote administration
           FromPort: 22
           ToPort: 22
           CidrIp: 190.216.159.17/32
@@ -50,18 +50,14 @@ Resources:
       GroupName: AppServer-secgroup
       GroupDescription: Security group for the app server intance
       VpcId: vpc-b33ad5ca
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 8080
-          ToPort: 8080
-          CidrIp: 190.216.159.17/32
+      SecurityGroupIngress: # Remote administration
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
           CidrIp: 190.216.159.17/32
-        - IpProtocol: tcp
-          FromPort: 8080
-          ToPort: 8080
+        - IpProtocol: tcp # Allow access from HAProxy instance
+          FromPort: 80
+          ToPort: 80
           SourceSecurityGroupId: !Ref HAproxySecurityGroup
 
   AppServerLaunchConfiguration:
@@ -74,7 +70,7 @@ Resources:
       KeyName: AppServer-ec2
       SecurityGroups:
         - !Ref AppServerSecurityGroup
-      UserData:
+      UserData: # This asumes that the AMI already has nginx and python installed
         Fn::Base64: !Sub |
           #!/bin/bash -ex
           # Create Nginx Cache folder
