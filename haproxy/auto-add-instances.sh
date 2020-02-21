@@ -27,7 +27,7 @@ do
     ipAddress=$(/usr/local/bin/aws ec2 describe-instances --instance-ids ${id} --query 'Reservations[].Instances[].PrivateIpAddress' --output text)
 
     # Create the line for the haproxy.cfg file and append to the end of haproxy.cfg
-    echo "  server ${uuid} ${ipAddress}:80 check cookie ${uuid}" >> /etc/haproxy/haproxy.cfg
+    echo "  server ${uuid} ${ipAddress}:80 cookie ${uuid}" >> /etc/haproxy/haproxy.cfg
 
 done
 

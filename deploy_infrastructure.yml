@@ -1,6 +1,29 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: This CloudFormation template contains the blueprint for deploying the infrastructure resources requested in the marfeel sysadmin Bogota position test, contains an instance with HAproxy as load balancer for an Autoscaling group in charge of an app-server hosting a Python application. David Montaño - daalmore@gmail.com
 
+Parameters:
+  AdminIP:
+    Description: Enter the IP from which you will access by SSH
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+    Default: 10.0.160.0/20
+
+  AccessKeyId:
+    NoEcho: 'true'
+    Default: ''
+    Description: (Optional) If you want to automatically login the AWSCLI from the HAProxy instance enter your Access Key
+    Type: String
+
+  SecretAccessKey:
+    NoEcho: 'true'
+    Default: ''
+    Description: (Optional) If you want to automatically login the AWSCLI from the HAProxy instance enter your Secret Access Key
+    Type: String
+
+
 Resources:
   HAproxySecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -16,7 +39,7 @@ Resources:
         - IpProtocol: tcp # Remote administration
           FromPort: 22
           ToPort: 22
-          CidrIp: 190.216.159.17/32
+          CidrIp: !Sub ${AdminIP}
 
   HAproxyInstance:
     Type: AWS::EC2::Instance
@@ -26,16 +49,20 @@ Resources:
       InstanceType: t2.nano
       SecurityGroupIds:
         - !Ref HAproxySecurityGroup
-      UserData: !Base64 |
+      UserData: !Base64 !Sub |
         #!/bin/bash -ex
         # This script will configure haproxy and prepare the instance to use the auto-add-instances script
         # Install HAproxy
         apt-get update 
         apt-get install -y haproxy unzip
         # Install AWS CLI
-        curl "https://d1vvhvl2y92vvt.cloudfront.net/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-        unzip awscliv2.zip
-        sudo ./aws/install
+        curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
+        unzip awscli-bundle.zip
+        sudo ./awscli-bundle/install -i /usr/local/aws -b /usr/local/bin/aws
+        # Autoconfigure AWSCLI
+        /usr/local/aws configure set aws_access_key_id ${AccessKeyId}
+        /usr/local/aws configure set aws_secret_access_key ${SecretAccessKey}
+        /usr/local/aws configure region eu-west-1
         # Download the autoscaling group register script and template
         cd /etc/haproxy/
         wget -O auto-add-instances.sh https://raw.githubusercontent.com/montanor/marfeel-tech-test/master/haproxy/auto-add-instances.sh
@@ -54,7 +81,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIp: 190.216.159.17/32
+          CidrIp: !Sub ${AdminIP}
         - IpProtocol: tcp # Allow access from HAProxy instance
           FromPort: 80
           ToPort: 80
