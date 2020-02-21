@@ -2,7 +2,7 @@
 # This script injects the private IP address of the instances launched by an AWS Autoscaling Group
 # into the haproxy configuration file. You must authenticate the AWS CLI first or use an instance role.
 # NOTE: The haproxy.cfg must be initialized with the following sample:
-# https://raw.githubusercontent.com/montanor/marfeel-tech-test/master/appserver/haproxy/haproxy.cfg
+# https://raw.githubusercontent.com/montanor/marfeel-tech-test/master/haproxy/haproxy.cfg
 # Author: David Montaño (20200220)
 # CRON Expression: */3 * * * * /etc/haproxy/auto-add-instances.sh > /etc/haproxy/auto-add-log
 
@@ -36,7 +36,7 @@ done
 
 if [ $? -eq 0 ]; then
     echo "$(date) Configuration file is OK, reloading HAproxy"
-    service haproxy reload
+    /usr/sbin/service haproxy reload
 else
     echo "$(date) Autoconfiguration failed, reverting changes"
     cp /etc/haproxy/haproxy.cfg.bak /etc/haproxy/haproxy.cfg
