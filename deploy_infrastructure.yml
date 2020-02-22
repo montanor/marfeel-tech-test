@@ -28,7 +28,7 @@ Resources:
   HAproxySecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: haproxy-secgroup
+      GroupName: haproxy-sec-group
       GroupDescription: Security group for the HAproxy intance
       VpcId: vpc-b33ad5ca
       SecurityGroupIngress:
@@ -39,7 +39,7 @@ Resources:
         - IpProtocol: tcp # Remote administration
           FromPort: 22
           ToPort: 22
-          CidrIp: !Sub ${AdminIP}
+          CidrIp: !Ref AdminIP
 
   HAproxyInstance:
     Type: AWS::EC2::Instance
@@ -49,39 +49,48 @@ Resources:
       InstanceType: t2.nano
       SecurityGroupIds:
         - !Ref HAproxySecurityGroup
-      UserData: !Base64 !Sub |
-        #!/bin/bash -ex
-        # This script will configure haproxy and prepare the instance to use the auto-add-instances script
-        # Install HAproxy
-        apt-get update 
-        apt-get install -y haproxy unzip
-        # Install AWS CLI
-        curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
-        unzip awscli-bundle.zip
-        sudo ./awscli-bundle/install -i /usr/local/aws -b /usr/local/bin/aws
-        # Autoconfigure AWSCLI
-        /usr/local/aws configure set aws_access_key_id ${AccessKeyId}
-        /usr/local/aws configure set aws_secret_access_key ${SecretAccessKey}
-        /usr/local/aws configure region eu-west-1
-        # Download the autoscaling group register script and template
-        cd /etc/haproxy/
-        wget -O auto-add-instances.sh https://raw.githubusercontent.com/montanor/marfeel-tech-test/master/haproxy/auto-add-instances.sh
-        wget -O haproxy.cfg.template https://raw.githubusercontent.com/montanor/marfeel-tech-test/master/haproxy/haproxy.cfg
-        chmod +x auto-add-instances.sh
-        echo "*/3 * * * * /etc/haproxy/auto-add-instances.sh > /etc/haproxy/auto-add-log" | tee -a /var/spool/cron/crontabs/root
-
+      UserData:
+        Fn::Base64:
+          Fn::Sub:
+            - |
+              #!/bin/bash -ex
+              # This script will configure haproxy and prepare the instance to use the auto-add-instances script
+              # Install HAproxy
+              apt-get update 
+              apt-get install -y haproxy unzip
+              # Install AWS CLI
+              curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
+              unzip awscli-bundle.zip
+              sudo ./awscli-bundle/install -i /usr/local/aws -b /usr/local/bin/aws
+              # Autoconfigure AWSCLI
+              /usr/local/aws configure set aws_access_key_id ${AccessKeyId}
+              /usr/local/aws configure set aws_secret_access_key ${SecretAccessKey}
+              /usr/local/aws configure region eu-west-1
+              # Download the autoscaling group register script and template
+              cd /etc/haproxy/
+              wget -O auto-add-instances.sh https://raw.githubusercontent.com/montanor/marfeel-tech-test/master/haproxy/auto-add-instances.sh
+              wget -O haproxy.cfg.template https://raw.githubusercontent.com/montanor/marfeel-tech-test/master/haproxy/haproxy.cfg
+              chmod +x auto-add-instances.sh
+              echo "*/3 * * * * /etc/haproxy/auto-add-instances.sh > /etc/haproxy/auto-add-log" | tee -a /var/spool/cron/crontabs/root
+              # Start the services
+              systemctl enable haproxy
+              systemctl start haproxy
+            - {
+              AccessKeyId: !Ref 'AccessKeyId',
+              SecretAccessKey: !Ref 'SecretAccessKey'
+              }
 
   AppServerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: AppServer-secgroup
+      GroupName: AppServer-sec-group
       GroupDescription: Security group for the app server intance
       VpcId: vpc-b33ad5ca
       SecurityGroupIngress: # Remote administration
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIp: !Sub ${AdminIP}
+          CidrIp: !Ref AdminIP
         - IpProtocol: tcp # Allow access from HAProxy instance
           FromPort: 80
           ToPort: 80
@@ -90,7 +99,7 @@ Resources:
   AppServerLaunchConfiguration:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
-      LaunchConfigurationName: AppServer-launchconfig
+      LaunchConfigurationName: AppServer-launch-config
       AssociatePublicIpAddress: true
       ImageId: ami-0821d6c83854dbafa
       InstanceType: t2.nano
