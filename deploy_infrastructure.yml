@@ -9,7 +9,7 @@ Parameters:
     MaxLength: '18'
     AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
     ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
-    Default: 10.0.160.0/20
+    Default: 0.0.0.0/0
 
   AccessKeyId:
     NoEcho: 'true'
@@ -54,18 +54,15 @@ Resources:
           Fn::Sub:
             - |
               #!/bin/bash -ex
+              exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
               # This script will configure haproxy and prepare the instance to use the auto-add-instances script
               # Install HAproxy
               apt-get update 
-              apt-get install -y haproxy unzip
-              # Install AWS CLI
-              curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
-              unzip awscli-bundle.zip
-              sudo ./awscli-bundle/install -i /usr/local/aws -b /usr/local/bin/aws
+              apt-get install -y haproxy unzip python3 awscli
               # Autoconfigure AWSCLI
-              /usr/local/aws configure set aws_access_key_id ${AccessKeyId}
-              /usr/local/aws configure set aws_secret_access_key ${SecretAccessKey}
-              /usr/local/aws configure region eu-west-1
+              /usr/bin/aws configure set aws_access_key_id ${AccessKeyId}
+              /usr/bin/aws configure set aws_secret_access_key ${SecretAccessKey}
+              /usr/bin/aws configure set region eu-west-1
               # Download the autoscaling group register script and template
               cd /etc/haproxy/
               wget -O auto-add-instances.sh https://raw.githubusercontent.com/montanor/marfeel-tech-test/master/haproxy/auto-add-instances.sh

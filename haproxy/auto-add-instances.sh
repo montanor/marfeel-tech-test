@@ -13,7 +13,7 @@ cp /etc/haproxy/haproxy.cfg /etc/haproxy/haproxy.cfg.bak
 cp /etc/haproxy/haproxy.cfg.template /etc/haproxy/haproxy.cfg
 
 # Get the id of the current instances launched by the ASG
-instanceList=$(/usr/local/bin/aws autoscaling describe-auto-scaling-groups --output text | grep INSTANCES | awk '{print $4}')
+instanceList=$(/usr/bin/aws autoscaling describe-auto-scaling-groups --output text | grep INSTANCES | awk '{print $4}')
 #echo "${instanceList}"
 
 
@@ -24,7 +24,7 @@ do
     uuid=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 10 | head -n 1)
 
     # Get the instance private address
-    ipAddress=$(/usr/local/bin/aws ec2 describe-instances --instance-ids ${id} --query 'Reservations[].Instances[].PrivateIpAddress' --output text)
+    ipAddress=$(/usr/bin/aws ec2 describe-instances --instance-ids ${id} --query 'Reservations[].Instances[].PrivateIpAddress' --output text)
 
     # Create the line for the haproxy.cfg file and append to the end of haproxy.cfg
     echo "  server ${uuid} ${ipAddress}:80 cookie ${uuid}" >> /etc/haproxy/haproxy.cfg
